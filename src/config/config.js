@@ -1,6 +1,7 @@
 const dotenv = require('dotenv');
 const path = require('path');
 const Joi = require('joi');
+const { en } = require("faker/lib/locales");
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
@@ -8,7 +9,14 @@ const envVarsSchema = Joi.object()
   .keys({
     NODE_ENV: Joi.string().valid('production', 'development', 'test').required(),
     PORT: Joi.number().default(3000),
-    MONGODB_URL: Joi.string().required().description('Mongo DB url'),
+    DB_NAME: Joi.string().default(""),
+    DB_USERNAME: Joi.string().default(""),
+    DB_PASSWORD: Joi.string().default(""),
+    DB_HOST: Joi.string(),
+    DB_PORT: Joi.number(),
+    DB_DIALECT: Joi.string().lowercase().valid('mysql', 'postgresql', 'sqlite', 'mariadb', 'mssql', 'db2', 'snowflake', 'oracle', 'mongoose').default("sqlite").required().description('DB of choice'),
+    DB_URL: Joi.string().description("DB url string"),
+    DB_STORAGE: Joi.string().description("The path the sqlite db file"),
     JWT_SECRET: Joi.string().required().description('JWT secret key'),
     JWT_ACCESS_EXPIRATION_MINUTES: Joi.number().default(30).description('minutes after which access tokens expire'),
     JWT_REFRESH_EXPIRATION_DAYS: Joi.number().default(30).description('days after which refresh tokens expire'),
@@ -35,13 +43,22 @@ if (error) {
 module.exports = {
   env: envVars.NODE_ENV,
   port: envVars.PORT,
-  mongoose: {
-    url: envVars.MONGODB_URL + (envVars.NODE_ENV === 'test' ? '-test' : ''),
-    options: {
+  db: {
+    dialect: envVars.DB_DIALECT,
+    name: envVars.DB_NAME,
+    username: envVars.DB_USERNAME,
+    password: envVars.DB_PASSWORD,
+    host: envVars.DB_HOST,
+    port: envVars.DB_PORT,
+    storage: envVars.DB_STORAGE,
+
+    url: envVars.DB_URL + (envVars.DB_TYPE === 'mongoose' && envVars.NODE_ENV === 'test' ? '-test' : ''),
+    // mongoose options
+    ...(envVars.DB_TYPE === 'mongoose' ? {options: {
       useCreateIndex: true,
       useNewUrlParser: true,
       useUnifiedTopology: true,
-    },
+    }} : {}),
   },
   jwt: {
     secret: envVars.JWT_SECRET,

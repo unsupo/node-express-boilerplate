@@ -1,10 +1,12 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
-const { toJSON, paginate } = require('./plugins');
-const { roles } = require('../config/roles');
+const {roles} = require('../config/roles');
+const DbService = require('../services/db/db.service');
 
-const userSchema = mongoose.Schema(
+const name = "User";
+
+const userSchema = DbService.Schema(name, [
   {
     name: {
       type: String,
@@ -48,11 +50,7 @@ const userSchema = mongoose.Schema(
   {
     timestamps: true,
   }
-);
-
-// add plugin that converts mongoose to json
-userSchema.plugin(toJSON);
-userSchema.plugin(paginate);
+]);
 
 /**
  * Check if email is taken
@@ -60,8 +58,8 @@ userSchema.plugin(paginate);
  * @param {ObjectId} [excludeUserId] - The id of the user to be excluded
  * @returns {Promise<boolean>}
  */
-userSchema.statics.isEmailTaken = async function (email, excludeUserId) {
-  const user = await this.findOne({ email, _id: { $ne: excludeUserId } });
+DbService.setStatics(userSchema).isEmailTaken = async function (email, excludeUserId) {
+  const user = await this.findOne({email, _id: {$ne: excludeUserId}});
   return !!user;
 };
 
@@ -70,12 +68,12 @@ userSchema.statics.isEmailTaken = async function (email, excludeUserId) {
  * @param {string} password
  * @returns {Promise<boolean>}
  */
-userSchema.methods.isPasswordMatch = async function (password) {
+DbService.setMethods(userSchema).isPasswordMatch = async function (password) {
   const user = this;
   return bcrypt.compare(password, user.password);
 };
-
-userSchema.pre('save', async function (next) {
+DbService.setPre('save', userSchema,
+  async function (next) {
   const user = this;
   if (user.isModified('password')) {
     user.password = await bcrypt.hash(user.password, 8);
@@ -86,6 +84,6 @@ userSchema.pre('save', async function (next) {
 /**
  * @typedef User
  */
-const User = mongoose.model('User', userSchema);
+const User = DbService.model(name, userSchema);
 
 module.exports = User;
